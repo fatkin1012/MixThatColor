@@ -1,10 +1,25 @@
 # MixThatColor
 
-A lightweight browser app to help you mix dyes to match a target color:
+A TypeScript color-mixing helper for dyes and paints.
 
-1. Upload a photo.
-2. Click the photo to pick the target color.
-3. Enter the dye colors you currently have.
-4. Get a simple suggested mix ratio based on color distance.
+## What it does
 
-Open `index.html` in a browser to use it.
+- Upload a reference photo.
+- Click the image to sample the target color.
+- Enter the dyes you already have.
+- Get a suggested drop recipe for the closest visible match.
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+## Production build
+
+```bash
+npm run build
+```
+
+The app is deployed as a static site from the `dist` folder.
