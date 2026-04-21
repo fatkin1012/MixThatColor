@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MixThatColor</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        line-height: 1.4;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        display: grid;
+        gap: 1rem;
+      }
+      .card {
+        border: 1px solid #8884;
+        border-radius: 12px;
+        padding: 1rem;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      canvas {
+        width: min(100%, 700px);
+        border: 1px solid #8884;
+        border-radius: 8px;
+        cursor: crosshair;
+      }
+      .swatch {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        border: 1px solid #0005;
+      }
+      .mix-list {
+        margin: 0.5rem 0 0;
+        padding-left: 1.2rem;
+      }
+      input[type="color"] {
+        width: 3rem;
+        height: 2rem;
+        padding: 0;
+        border: none;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MixThatColor</h1>
+
+      <section class="card">
+        <h2>1) Upload and pick target color</h2>
+        <div class="row">
+          <label for="imageInput">Image:</label>
+          <input id="imageInput" type="file" accept="image/*" />
+          <span>Click on the image to pick your target color.</span>
+        </div>
+        <p class="row">
+          <span>Target color:</span>
+          <span id="targetSwatch" class="swatch" style="background: #ffffff"></span>
+          <code id="targetHex">#ffffff</code>
+        </p>
+        <canvas id="imageCanvas" width="700" height="400" aria-label="Uploaded image"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>2) Enter dyes you have</h2>
+        <div class="row">
+          <label for="dye1">Dye 1</label><input id="dye1" type="color" value="#ff0000" />
+          <label for="dye2">Dye 2</label><input id="dye2" type="color" value="#0000ff" />
+          <label for="dye3">Dye 3</label><input id="dye3" type="color" value="#ffff00" />
+          <button id="mixButton" type="button">Calculate Mix</button>
+        </div>
+        <p id="mixSummary">Pick a target color and press “Calculate Mix”.</p>
+        <ul id="mixList" class="mix-list"></ul>
+      </section>
+    </main>
+
+    <script>
+      const imageInput = document.getElementById("imageInput");
+      const imageCanvas = document.getElementById("imageCanvas");
+      const ctx = imageCanvas.getContext("2d");
+      const targetSwatch = document.getElementById("targetSwatch");
+      const targetHex = document.getElementById("targetHex");
+      const mixButton = document.getElementById("mixButton");
+      const mixSummary = document.getElementById("mixSummary");
+      const mixList = document.getElementById("mixList");
+      const dyeInputs = [
+        document.getElementById("dye1"),
+        document.getElementById("dye2"),
+        document.getElementById("dye3"),
+      ];
+
+      let targetRgb = { r: 255, g: 255, b: 255 };
+      ctx.fillStyle = "#f2f2f2";
+      ctx.fillRect(0, 0, imageCanvas.width, imageCanvas.height);
+      ctx.fillStyle = "#666";
+      ctx.font = "20px sans-serif";
+      ctx.fillText("Upload an image, then click to pick a color", 16, 44);
+
+      function hexToRgb(hex) {
+        const value = hex.replace("#", "");
+        return {
+          r: parseInt(value.slice(0, 2), 16),
+          g: parseInt(value.slice(2, 4), 16),
+          b: parseInt(value.slice(4, 6), 16),
+        };
+      }
+
+      function rgbToHex({ r, g, b }) {
+        return (
+          "#" +
+          [r, g, b]
+            .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, "0"))
+            .join("")
+        );
+      }
+
+      function colorDistance(a, b) {
+        const dr = a.r - b.r;
+        const dg = a.g - b.g;
+        const db = a.b - b.b;
+        return Math.sqrt(dr * dr + dg * dg + db * db);
+      }
+
+      function drawImage(file) {
+        const image = new Image();
+        image.onload = () => {
+          const scale = Math.min(imageCanvas.width / image.width, imageCanvas.height / image.height);
+          const drawWidth = image.width * scale;
+          const drawHeight = image.height * scale;
+          const x = (imageCanvas.width - drawWidth) / 2;
+          const y = (imageCanvas.height - drawHeight) / 2;
+          ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+          ctx.drawImage(image, x, y, drawWidth, drawHeight);
+        };
+        image.src = URL.createObjectURL(file);
+      }
+
+      imageInput.addEventListener("change", (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        drawImage(file);
+      });
+
+      imageCanvas.addEventListener("click", (event) => {
+        const rect = imageCanvas.getBoundingClientRect();
+        const x = Math.floor(((event.clientX - rect.left) / rect.width) * imageCanvas.width);
+        const y = Math.floor(((event.clientY - rect.top) / rect.height) * imageCanvas.height);
+        const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+        targetRgb = { r, g, b };
+        const hex = rgbToHex(targetRgb);
+        targetSwatch.style.background = hex;
+        targetHex.textContent = hex;
+      });
+
+      mixButton.addEventListener("click", () => {
+        const dyes = dyeInputs.map((input, index) => ({
+          name: `Dye ${index + 1}`,
+          rgb: hexToRgb(input.value),
+          hex: input.value,
+        }));
+
+        const weighted = dyes.map((dye) => ({
+          ...dye,
+          weight: 1 / (colorDistance(targetRgb, dye.rgb) + 1),
+        }));
+
+        const total = weighted.reduce((sum, entry) => sum + entry.weight, 0) || 1;
+        const recommended = weighted
+          .map((entry) => ({
+            ...entry,
+            percent: (entry.weight / total) * 100,
+          }))
+          .sort((a, b) => b.percent - a.percent);
+
+        mixSummary.textContent = `Target ${rgbToHex(targetRgb)} suggested proportions:`;
+        mixList.innerHTML = recommended
+          .map(
+            (entry) =>
+              `<li><span class="swatch" style="display:inline-block;vertical-align:middle;background:${entry.hex}"></span> ${entry.name} (${entry.hex}): ${entry.percent.toFixed(1)}%</li>`
+          )
+          .join("");
+      });
+    </script>
+  </body>
+</html>
