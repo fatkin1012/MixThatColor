@@ -137,6 +137,7 @@
 
       function drawImage(file) {
         const image = new Image();
+        const objectUrl = URL.createObjectURL(file);
         image.onload = () => {
           const scale = Math.min(imageCanvas.width / image.width, imageCanvas.height / image.height);
           const drawWidth = image.width * scale;
@@ -145,8 +146,10 @@
           const y = (imageCanvas.height - drawHeight) / 2;
           ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
           ctx.drawImage(image, x, y, drawWidth, drawHeight);
+          URL.revokeObjectURL(objectUrl);
         };
-        image.src = URL.createObjectURL(file);
+        image.onerror = () => URL.revokeObjectURL(objectUrl);
+        image.src = objectUrl;
       }
 
       imageInput.addEventListener("change", (event) => {
